@@ -2,9 +2,10 @@
 from flask import Flask, request, jsonify
 from apscheduler.schedulers.background import BackgroundScheduler
 from dotenv import load_dotenv
-import predictor
+import predictor # predictor 모듈에서 get_predicted_team_rankings_df 함수를 사용하기 위해 임포트
 from tasks import run_daily_prediction_job
 import os # os 모듈을 임포트해야 합니다.
+import datetime # datetime 모듈 임포트 추가
 
 # .env 파일에서 환경 변수 로드 (이 라인은 이제 DB_URI에는 영향을 미치지 않지만, 다른 환경 변수 로드에 필요할 수 있으므로 유지)
 load_dotenv()
@@ -25,10 +26,11 @@ cached_data = {
     'hitter_data': None,
     'pitcher_data': None,
     'win_probability_df': None,
+    'predicted_team_rankings_df': None, # 팀 순위 예측 결과를 저장할 캐시 추가
     'last_update': None
 }
 
-# --- 이 부분이 중요합니다! 스케줄러와 초기 실행 로직을 __name__ == '__main__' 밖으로 이동 ---
+# --- 이 부분이 중요합니다! 스케줄러와 초기 실행 로직을 __name__ == '__main__' 밖으로 이동 ---\
 
 # 스케줄러 설정
 scheduler = BackgroundScheduler(daemon=True, timezone='Asia/Seoul')
@@ -36,19 +38,15 @@ scheduler = BackgroundScheduler(daemon=True, timezone='Asia/Seoul')
 scheduler.add_job(run_daily_prediction_job, 'cron', hour=0, minute=1)
 scheduler.start()
 
-# 앱을 처음 시작할 때 작업을 한 번 실행하여 DB를 채울 수 있습니다.
-# 이 코드는 앱이 시작될 때마다 실행되므로 주의해야 합니다.
-run_daily_prediction_job()
+# 애플리케이션 시작 시 최초 1회 실행
+with app.app_context():
+    print("🚀 애플리케이션 시작: 초기 데이터 로드 및 예측 작업 실행...")
+    run_daily_prediction_job() # 앱 시작 시 초기 데이터 로드 및 DB 적재
+    print("✅ 초기 데이터 로드 및 예측 작업 완료.")
 
-print("🚀 API 서버와 스케줄러가 시작되었습니다. 매일 00:01에 예측 결과가 DB에 저장됩니다.")
 
-
-@app.route('/')
-def home():
-    return "KBO 야구 승률 예측 API. '/predict_win_rate' 엔드포인트를 사용하세요."
-
-@app.route('/predict_win_rate', methods=['POST'])
-def predict_win_rate():
+@app.route('/predict_win_probability', methods=['POST'])
+def predict_win_probability():
     data = request.get_json()
     if not data or 'team1' not in data or 'team2' not in data:
         return jsonify({'error': '두 팀 이름을 제공해야 합니다. 예: {"team1": "LG", "team2": "삼성"}'}), 400
@@ -58,14 +56,15 @@ def predict_win_rate():
 
     try:
         # API 요청 시에는 캐시 기반으로 예측 결과 제공
+        # 이 호출을 통해 내부적으로 캐시된 데이터가 최신으로 유지됩니다.
         win_probability_df = predictor.get_win_probability_df(cached_data)
 
         valid_teams = win_probability_df.index.tolist()
 
         if team1 not in valid_teams:
-            return jsonify({'error': f"'{team1}'은(는) 유효한 팀 이름이 아닙니다. 유효한 팀 목록: {', '.join(valid_teams)}"}), 400
+            return jsonify({'error': f"'{team1}'은(는) 유효한 팀 이름이 아닙니다. 유효한 팀 목록: {', '.join(valid_teams)}", 'valid_teams': valid_teams}), 400
         if team2 not in valid_teams:
-            return jsonify({'error': f"'{team2}'은(는) 유효한 팀 이름이 아닙니다. 유효한 팀 목록: {', '.join(valid_teams)}"}), 400
+            return jsonify({'error': f"'{team2}'은(는) 유효한 팀 이름이 아닙니다. 유효한 팀 목록: {', '.join(valid_teams)}", 'valid_teams': valid_teams}), 400
         if team1 == team2:
             return jsonify({'error': "같은 팀 간의 승률은 계산할 수 없습니다."}), 400
 
@@ -81,12 +80,27 @@ def predict_win_rate():
         })
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': f"승률 예측 중 오류가 발생했습니다: {str(e)}"}), 500
 
-# Gunicorn은 'app:app'에서 'app' 변수를 찾아 실행합니다.
-# 따라서 이 블록은 로컬 개발 환경에서만 유효하도록 남겨두거나 완전히 제거할 수 있습니다.
+@app.route('/predict_team_rankings', methods=['GET'])
+def predict_team_rankings():
+    """예측된 팀 순위를 반환하는 API 엔드포인트"""
+    try:
+        predicted_rankings_df = predictor.get_predicted_team_rankings_df(cached_data)
+        if predicted_rankings_df is None:
+            return jsonify({'error': '팀 순위 예측 데이터를 불러올 수 없습니다. 데이터 로딩 중이거나 오류가 발생했습니다.'}), 500
+
+        # DataFrame을 JSON 형식으로 변환하여 반환
+        return jsonify(predicted_rankings_df.to_dict(orient='records'))
+
+    except Exception as e:
+        return jsonify({'error': f"팀 순위 예측 결과를 가져오는 중 오류가 발생했습니다: {str(e)}"}), 500
+
+@app.route('/')
+def home():
+    return "환영합니다! KBO 승률 예측 API입니다. /predict_win_probability (POST) 또는 /predict_team_rankings (GET) 엔드포인트를 사용하세요."
+
 if __name__ == '__main__':
-    # 로컬 개발 시에만 app.run()을 실행
-    # Render에서는 Gunicorn이 이 부분을 대신합니다.
-    # print("🚀 API 서버와 스케줄러가 시작되었습니다. 매일 00:01에 예측 결과가 DB에 저장됩니다.") # 이미 위에서 출력됨
-    app.run(debug=True, host='0.0.0.0', port=os.getenv("PORT", 8080)) # Render의 PORT 환경 변수 사용
+    # Render 환경에서는 Gunicorn과 같은 WSGI 서버가 앱을 실행하므로
+    # 이 __main__ 블록의 app.run()은 직접 실행되지 않습니다.
+    app.run(host='0.0.0.0', port=os.getenv('PORT', 5000), debug=True)
