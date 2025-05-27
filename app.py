@@ -28,13 +28,31 @@ cached_data = {
     'last_update': None
 }
 
+# --- 이 부분이 중요합니다! 스케줄러와 초기 실행 로직을 __name__ == '__main__' 밖으로 이동 ---
+
+# 스케줄러 설정
+scheduler = BackgroundScheduler(daemon=True, timezone='Asia/Seoul')
+# 매일 00:01에 run_daily_prediction_job 함수 실행
+scheduler.add_job(run_daily_prediction_job, 'cron', hour=0, minute=1)
+scheduler.start()
+
+# 앱을 처음 시작할 때 작업을 한 번 실행하여 DB를 채울 수 있습니다.
+# 이 코드는 앱이 시작될 때마다 실행되므로 주의해야 합니다.
+# (프로덕션 환경에서는 한 번 실행 후 주석 처리하거나 별도 관리 필요)
+run_daily_prediction_job()
+
+print("🚀 API 서버와 스케줄러가 시작되었습니다. 매일 00:01에 예측 결과가 DB에 저장됩니다.")
+
+# --- 여기까지 이동 ---
+
+
 @app.route('/')
 def home():
     return "KBO 야구 승률 예측 API. '/predict_win_rate' 엔드포인트를 사용하세요."
 
 @app.route('/predict_win_rate', methods=['POST'])
 def predict_win_rate():
-    # 요청에서 팀 이름 추출
+    # ... (기존 코드와 동일) ...
     data = request.get_json()
     if not data or 'team1' not in data or 'team2' not in data:
         return jsonify({'error': '두 팀 이름을 제공해야 합니다. 예: {"team1": "LG", "team2": "삼성"}'}), 400
@@ -69,15 +87,11 @@ def predict_win_rate():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# `app.run()`은 Gunicorn이 실행할 때 필요하지 않습니다.
+# Gunicorn은 'app:app'에서 'app' 변수를 찾아 실행합니다.
+# 따라서 이 블록은 로컬 개발 환경에서만 유효하도록 남겨두거나 완전히 제거할 수 있습니다.
 if __name__ == '__main__':
-    # 스케줄러 설정
-    scheduler = BackgroundScheduler(daemon=True, timezone='Asia/Seoul')
-    # 매일 00:01에 run_daily_prediction_job 함수 실행
-    scheduler.add_job(run_daily_prediction_job, 'cron', hour=0, minute=1)
-    scheduler.start()
-    
-    # 앱을 처음 시작할 때 작업을 한 번 실행하여 DB를 채울 수 있습니다.
-    run_daily_prediction_job() 
-    
-    print("🚀 API 서버와 스케줄러가 시작되었습니다. 매일 00:01에 예측 결과가 DB에 저장됩니다.")
-    app.run(debug=True, host='0.0.0.0', port=8080)
+    # 로컬 개발 시에만 app.run()을 실행
+    # Render에서는 Gunicorn이 이 부분을 대신합니다.
+    # print("🚀 API 서버와 스케줄러가 시작되었습니다. 매일 00:01에 예측 결과가 DB에 저장됩니다.") # 이미 위에서 출력됨
+    app.run(debug=True, host='0.0.0.0', port=os.getenv("PORT", 8080)) # Render의 PORT 환경 변수 사용
