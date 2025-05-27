@@ -68,7 +68,7 @@ if __name__ == '__main__':
     scheduler.start()
     
     # 앱을 처음 시작할 때 작업을 한 번 실행하여 DB를 채울 수 있습니다.
-    # run_daily_prediction_job() 
+    run_daily_prediction_job() 
     
     print("🚀 API 서버와 스케줄러가 시작되었습니다. 매일 00:01에 예측 결과가 DB에 저장됩니다.")
     app.run(debug=True, host='0.0.0.0', port=8080)
