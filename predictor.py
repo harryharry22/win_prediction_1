@@ -65,11 +65,11 @@ def generate_win_probability_df(all_hitter_data, all_pitcher_data):
 
     # OPS-WHIP 값을 기준으로 내림차순 정렬하여 최종 팀 순위 예측
     team_rankings = team_stats.sort_values(by='OPS_minus_WHIP', ascending=False).reset_index(drop=True)
-    team_rankings['rank'] = team_rankings.index + 1 # 1부터 시작하는 순위 부여
+    team_rankings['team_rank'] = team_rankings.index + 1 # 'rank' -> 'team_rank'으로 변경
 
     # 필요한 컬럼만 선택하여 반환 (팀명, 예측 OPS, 예측 WHIP, OPS-WHIP 값, 순위)
-    predicted_team_rankings_df = team_rankings[['rank', '팀명', 'OPS_predict_OPS', 'WHIP_predict_WHIP', 'OPS_minus_WHIP']]
-    predicted_team_rankings_df.columns = ['rank', 'team_name', 'predicted_ops', 'predicted_whip', 'ops_minus_whip']
+    predicted_team_rankings_df = team_rankings[['team_rank', '팀명', 'OPS_predict_OPS', 'WHIP_predict_WHIP', 'OPS_minus_WHIP']] # 'rank' -> 'team_rank'으로 변경
+    predicted_team_rankings_df.columns = ['team_rank', 'team_name', 'predicted_ops', 'predicted_whip', 'ops_minus_whip'] # 'rank' -> 'team_rank'으로 변경
 
     return win_probability_df, predicted_team_rankings_df
 
