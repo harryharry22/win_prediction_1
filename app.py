@@ -1,11 +1,17 @@
+# app.py
 from flask import Flask, request, jsonify
-import crawler
-import data_processor
+from apscheduler.schedulers.background import BackgroundScheduler
+from dotenv import load_dotenv
 import predictor
+from tasks import run_daily_prediction_job
+
+# .env 파일에서 환경 변수 로드
+load_dotenv()
 
 app = Flask(__name__)
-app.config['JSON_AS_ASCII'] = False 
-# 전역 변수로 데이터와 모델 저장
+app.config['JSON_AS_ASCII'] = False
+
+# 전역 변수로 데이터와 모델 저장 (API 호출 시 사용)
 cached_data = {
     'hitter_data': None,
     'pitcher_data': None,
@@ -13,11 +19,9 @@ cached_data = {
     'last_update': None
 }
 
-
 @app.route('/')
 def home():
     return "KBO 야구 승률 예측 API. '/predict_win_rate' 엔드포인트를 사용하세요."
-
 
 @app.route('/predict_win_rate', methods=['POST'])
 def predict_win_rate():
@@ -29,11 +33,10 @@ def predict_win_rate():
     team1 = data['team1']
     team2 = data['team2']
 
-    # 데이터 크롤링 및 처리
     try:
+        # API 요청 시에는 캐시 기반으로 예측 결과 제공
         win_probability_df = predictor.get_win_probability_df(cached_data)
 
-        # 유효한 팀 목록 확인
         valid_teams = win_probability_df.index.tolist()
 
         if team1 not in valid_teams:
@@ -43,12 +46,10 @@ def predict_win_rate():
         if team1 == team2:
             return jsonify({'error': "같은 팀 간의 승률은 계산할 수 없습니다."}), 400
 
-        # 승률 계산
         win_prob = win_probability_df.loc[team1, team2]
         if win_prob == '-':
             return jsonify({'error': "승률을 계산할 수 없습니다."}), 400
 
-        # 결과 반환
         return jsonify({
             'team1': team1,
             'team2': team2,
@@ -59,6 +60,15 @@ def predict_win_rate():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-
 if __name__ == '__main__':
+    # 스케줄러 설정
+    scheduler = BackgroundScheduler(daemon=True, timezone='Asia/Seoul')
+    # 매일 00:01에 run_daily_prediction_job 함수 실행
+    scheduler.add_job(run_daily_prediction_job, 'cron', hour=0, minute=1)
+    scheduler.start()
+    
+    # 앱을 처음 시작할 때 작업을 한 번 실행하여 DB를 채울 수 있습니다.
+    # run_daily_prediction_job() 
+    
+    print("🚀 API 서버와 스케줄러가 시작되었습니다. 매일 00:01에 예측 결과가 DB에 저장됩니다.")
     app.run(debug=True, host='0.0.0.0', port=8080)
