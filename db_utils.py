@@ -2,23 +2,21 @@
 import os
 import pandas as pd
 from sqlalchemy import create_engine
-from dotenv import load_dotenv
+from dotenv import load_dotenv # 이 라인은 이제 필요 없을 수 있지만, 다른 용도로 load_dotenv()를 쓸 수도 있으므로 유지
 import datetime
 
 def get_db_engine():
     """DB 연결을 위한 SQLAlchemy 엔진 생성"""
-    load_dotenv()
-    
-    db_host = os.getenv("DB_HOST")
-    db_user = os.getenv("DB_USER")
-    db_password = os.getenv("DB_PASSWORD")
-    db_name = os.getenv("DB_NAME")
-    db_port = os.getenv("DB_PORT")
+    #DB URI를 직접 명시
+    db_uri = 'mysql+pymysql://root:dugout2025!!@dugout-dev.cn6mm486utfi.ap-northeast-2.rds.amazonaws.com:3306/dugoutDB?charset=utf8'
 
-    if not all([db_host, db_user, db_password, db_name, db_port]):
-        raise ValueError("DB 연결 정보가 .env 파일에 올바르게 설정되지 않았습니다.")
+    # 디버깅을 위해 print 추가 
+    print(f"DEBUG: Using DB URI: {db_uri.split('//')[0]}//****:****@{db_uri.split('@')[1]}") # 비밀번호는 가립니다.
 
-    engine = create_engine(f"mysql+pymysql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}")
+    if not db_uri:
+        raise ValueError("DB URI가 올바르게 설정되지 않았습니다.")
+
+    engine = create_engine(db_uri)
     return engine
 
 def save_win_probabilities(win_probability_df):
