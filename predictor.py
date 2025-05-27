@@ -11,7 +11,13 @@ def generate_win_probability_df(all_hitter_data, all_pitcher_data):
     # 연도가 2025인 데이터만 추출
     df_2025_hitter = all_hitter_data[all_hitter_data['연도'] == 2025]
     df_2025_pitcher = all_pitcher_data[all_pitcher_data['연도'] == 2025]
-
+    
+    # --- 디버깅 시작 ---
+    print("\n--- Debugging in generate_win_probability_df ---")
+    print("df_2025_hitter columns:", df_2025_hitter.columns.tolist())
+    print("df_2025_pitcher columns:", df_2025_pitcher.columns.tolist())
+    # --- 디버깅 끝 ---
+    
     # 팀별 OPS 값 평균 산출
     team_ops_avg = df_2025_hitter.groupby('팀명')['OPS_predict'].mean().reset_index()
 
@@ -23,6 +29,11 @@ def generate_win_probability_df(all_hitter_data, all_pitcher_data):
 
     # WHIP 기준 내림차순으로 팀 정렬 (이 부분은 승률 예측에는 사용되지 않지만, 디버깅 등에 유용)
     team_whip_avg_sorted = team_whip_avg.sort_values(by='WHIP_predict', ascending=False)
+
+    # --- 디버깅 시작 ---
+    print("team_ops_avg columns:", team_ops_avg.columns.tolist())
+    print("team_whip_avg columns:", team_whip_avg.columns.tolist())
+    # --- 디버깅 끝 ---
 
     # 승률 계산 로직 (기존과 동일)
     teams = team_ops_avg['팀명'].tolist()
@@ -40,11 +51,6 @@ def generate_win_probability_df(all_hitter_data, all_pitcher_data):
                 whip2 = team_whip_avg[team_whip_avg['팀명'] == team2]['WHIP_predict'].iloc[0]
 
                 # 승률 예측 공식 (예시: OPS와 WHIP를 단순 합산하여 승률을 예측)
-                # 실제 예측 모델은 더 복잡할 수 있습니다. 여기서는 예시로 간단한 공식을 사용합니다.
-                # OPS는 높을수록 좋고, WHIP는 낮을수록 좋으므로, OPS1과 WHIP2의 역수를 사용
-                # 예측 승률이 0보다 작거나 100보다 클 수 있으므로, 0-100% 범위로 스케일링 (예시)
-                # 이 공식은 단순한 예시이며, 실제 야구 예측에 적합한 통계적 모델이 필요합니다.
-                # 여기서는 OPS-WHIP을 활용하여 예측 승률을 계산하는 아이디어를 구현합니다.
                 win_prob = (ops1 / (ops1 + whip2)) * 100 # 임의의 승률 계산식
 
                 # 승률을 0% ~ 100% 사이로 제한
@@ -59,6 +65,10 @@ def generate_win_probability_df(all_hitter_data, all_pitcher_data):
     # 팀별 OPS 및 WHIP 예측값을 하나의 DataFrame으로 합치기
     team_stats = pd.merge(team_ops_avg, team_whip_avg, on='팀명', suffixes=('_OPS', '_WHIP'))
 
+    # --- 디버깅 시작 ---
+    print("team_stats columns after merge:", team_stats.columns.tolist())
+    # --- 디버깅 끝 ---
+    
     # OPS는 높을수록 좋고, WHIP는 낮을수록 좋으므로 'OPS_predict - WHIP_predict' 값을 계산합니다.
     # 이 값이 높을수록 팀의 공격력은 강하고 투수력은 좋다는 의미로 해석하여 순위를 예측합니다.
     team_stats['OPS_minus_WHIP'] = team_stats['OPS_predict_OPS'] - team_stats['WHIP_predict_WHIP']
