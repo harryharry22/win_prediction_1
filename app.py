@@ -4,12 +4,21 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from dotenv import load_dotenv
 import predictor
 from tasks import run_daily_prediction_job
+import os # os 모듈을 임포트해야 합니다.
 
-# .env 파일에서 환경 변수 로드
+# .env 파일에서 환경 변수 로드 (이 라인은 이제 DB_URI에는 영향을 미치지 않지만, 다른 환경 변수 로드에 필요할 수 있으므로 유지)
 load_dotenv()
 
 app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False
+
+# MySQL 연결 정보 직접 명시 (환경 변수 사용 권장하지 않음)
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
+'DB_URI',
+'mysql+pymysql://root:dugout2025!!@dugout-dev.cn6mm486utfi.ap-northeast-2.rds.amazonaws.com:3306/dugoutDB?charset=utf8'
+)
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
 
 # 전역 변수로 데이터와 모델 저장 (API 호출 시 사용)
 cached_data = {
