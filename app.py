@@ -13,7 +13,7 @@ load_dotenv()
 app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False
 
-# MySQL 연결 정보 직접 명시 (환경 변수 사용 권장하지 않음)
+# MySQL 연결 정보 직접 명시
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
 'DB_URI',
 'mysql+pymysql://root:dugout2025!!@dugout-dev.cn6mm486utfi.ap-northeast-2.rds.amazonaws.com:3306/dugoutDB?charset=utf8'
@@ -35,7 +35,7 @@ cached_data = {
 # 스케줄러 설정
 scheduler = BackgroundScheduler(daemon=True, timezone='Asia/Seoul')
 # 매일 00:01에 run_daily_prediction_job 함수 실행
-scheduler.add_job(run_daily_prediction_job, 'cron', hour=0, minute=1)
+scheduler.add_job(run_daily_prediction_job, 'cron', hour=1, minute=40)
 scheduler.start()
 
 # 애플리케이션 시작 시 최초 1회 실행
