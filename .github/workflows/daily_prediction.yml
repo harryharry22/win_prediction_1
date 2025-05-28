@@ -3,8 +3,8 @@ name: Daily KBO Prediction and DB Update
 
 on:
   schedule:
-    # UTC 기준 오전 5시 10분에 실행 (서울 시간 오후 2시 10분)
-    - cron: '10 5 * * *'
+    # UTC 기준 15시 01분에 실행 (서울 시간 00시 01분, 즉 매일 자정 1분)
+    - cron: '1 15 * * *'
   workflow_dispatch: # 수동 실행을 허용
 
 jobs:
