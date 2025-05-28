@@ -1,4 +1,4 @@
-# app.py 
+# app.py (수정될 내용)
 from flask import Flask, request, jsonify
 # from apscheduler.schedulers.background import BackgroundScheduler # 제거
 from dotenv import load_dotenv
