@@ -35,7 +35,7 @@ cached_data = {
 # 스케줄러 설정
 scheduler = BackgroundScheduler(daemon=True, timezone='Asia/Seoul')
 # 매일 00:01에 run_daily_prediction_job 함수 실행
-scheduler.add_job(run_daily_prediction_job, 'cron', hour=5, minute=0)
+scheduler.add_job(run_daily_prediction_job, 'cron', hour=9, minute=30)
 scheduler.start()
 
 # 애플리케이션 시작 시 최초 1회 실행
